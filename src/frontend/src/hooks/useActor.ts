@@ -6,20 +6,38 @@ import { getSecretParameter } from "../utils/urlParams";
 import { useInternetIdentity } from "./useInternetIdentity";
 
 const ACTOR_QUERY_KEY = "actor";
+
+// Admin token: from URL hash (Caffeine platform), or from Vite env variable (Vercel/custom deployment)
+function resolveAdminToken(): string {
+  const fromUrl = getSecretParameter("caffeineAdminToken");
+  if (fromUrl) return fromUrl;
+  // Fallback: VITE_ADMIN_TOKEN env variable (set in Vercel dashboard)
+  const fromEnv = import.meta.env.VITE_ADMIN_TOKEN as string | undefined;
+  return fromEnv || "";
+}
+
 export function useActor() {
   const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
   const actorQuery = useQuery<backendInterface>({
     queryKey: [ACTOR_QUERY_KEY, identity?.getPrincipal().toString()],
     queryFn: async () => {
+      const adminToken = resolveAdminToken();
+
       const isAuthenticated = !!identity;
-      const adminToken = getSecretParameter("caffeineAdminToken") || "";
 
       if (!isAuthenticated) {
-        // Anonymous actor — still initialize access control so backend writes succeed
+        // Anonymous actor — still initialize admin token so backend writes work
         const actor = await createActorWithConfig();
         if (adminToken) {
-          await actor._initializeAccessControlWithSecret(adminToken);
+          try {
+            await actor._initializeAccessControlWithSecret(adminToken);
+          } catch (e) {
+            console.warn(
+              "Anonymous actor: admin token initialization failed",
+              e,
+            );
+          }
         }
         return actor;
       }
