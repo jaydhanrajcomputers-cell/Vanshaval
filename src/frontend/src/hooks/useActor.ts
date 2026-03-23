@@ -13,10 +13,15 @@ export function useActor() {
     queryKey: [ACTOR_QUERY_KEY, identity?.getPrincipal().toString()],
     queryFn: async () => {
       const isAuthenticated = !!identity;
+      const adminToken = getSecretParameter("caffeineAdminToken") || "";
 
       if (!isAuthenticated) {
-        // Return anonymous actor if not authenticated
-        return await createActorWithConfig();
+        // Anonymous actor — still initialize access control so backend writes succeed
+        const actor = await createActorWithConfig();
+        if (adminToken) {
+          await actor._initializeAccessControlWithSecret(adminToken);
+        }
+        return actor;
       }
 
       const actorOptions = {
@@ -26,13 +31,12 @@ export function useActor() {
       };
 
       const actor = await createActorWithConfig(actorOptions);
-      const adminToken = getSecretParameter("caffeineAdminToken") || "";
-      await actor._initializeAccessControlWithSecret(adminToken);
+      if (adminToken) {
+        await actor._initializeAccessControlWithSecret(adminToken);
+      }
       return actor;
     },
-    // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,
-    // This will cause the actor to be recreated when the identity changes
     enabled: true,
   });
 

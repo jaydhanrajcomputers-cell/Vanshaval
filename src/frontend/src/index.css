@@ -1,3 +1,213 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Fraunces: Display/Headings ─── */
+@font-face {
+  font-family: "Fraunces";
+  src: url("/assets/fonts/Fraunces.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── Crimson Pro: Body/Devanagari-adjacent serif ─── */
+@font-face {
+  font-family: "Crimson Pro";
+  src: url("/assets/fonts/CrimsonPro.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── General Sans: UI/Navigation ─── */
+@font-face {
+  font-family: "General Sans";
+  src: url("/assets/fonts/GeneralSans.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Vatavriksha Heritage Palette — Warm Saffron + Earthy Cream */
+    /* Background: warm ivory/cream */
+    --background: 0.974 0.012 80;
+    /* Foreground: deep espresso brown */
+    --foreground: 0.22 0.04 55;
+
+    /* Card: slightly warmer ivory */
+    --card: 0.968 0.018 75;
+    --card-foreground: 0.22 0.04 55;
+
+    /* Popover */
+    --popover: 0.98 0.01 75;
+    --popover-foreground: 0.22 0.04 55;
+
+    /* Primary: deep saffron/ochre */
+    --primary: 0.55 0.16 52;
+    --primary-foreground: 0.98 0.01 75;
+
+    /* Secondary: muted turmeric gold */
+    --secondary: 0.92 0.06 75;
+    --secondary-foreground: 0.3 0.06 55;
+
+    /* Muted: warm sand */
+    --muted: 0.94 0.025 75;
+    --muted-foreground: 0.5 0.04 60;
+
+    /* Accent: forest/earthy green */
+    --accent: 0.88 0.04 150;
+    --accent-foreground: 0.25 0.08 145;
+
+    /* Destructive */
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 0.98 0.01 75;
+
+    /* Border: warm tan */
+    --border: 0.85 0.04 70;
+    /* Input */
+    --input: 0.88 0.03 70;
+    /* Ring: saffron */
+    --ring: 0.55 0.16 52;
+
+    /* Charts */
+    --chart-1: 0.646 0.222 41.116;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.398 0.07 227.392;
+    --chart-4: 0.828 0.189 84.429;
+    --chart-5: 0.769 0.188 70.08;
+
+    /* Sidebar */
+    --sidebar: 0.96 0.02 72;
+    --sidebar-foreground: 0.22 0.04 55;
+    --sidebar-primary: 0.55 0.16 52;
+    --sidebar-primary-foreground: 0.98 0.01 75;
+    --sidebar-accent: 0.92 0.06 75;
+    --sidebar-accent-foreground: 0.3 0.06 55;
+    --sidebar-border: 0.85 0.04 70;
+    --sidebar-ring: 0.55 0.16 52;
+
+    /* Heritage custom tokens */
+    --saffron: 0.65 0.19 48;
+    --saffron-deep: 0.45 0.18 44;
+    --saffron-light: 0.88 0.09 65;
+    --earth-green: 0.35 0.1 145;
+    --earth-green-light: 0.72 0.08 148;
+    --gold: 0.75 0.12 72;
+    --gold-dark: 0.55 0.14 68;
+    --cream: 0.97 0.015 78;
+    --cream-dark: 0.92 0.025 72;
+    --lotus-pink: 0.72 0.12 10;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Crimson Pro", "General Sans", serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Fraunces", "Crimson Pro", serif;
+  }
+}
+
+/* ─── Heritage background texture ─── */
+.heritage-bg {
+  background-color: oklch(var(--background));
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c47d2a' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ─── Hero gradient ─── */
+.hero-gradient {
+  background: linear-gradient(
+    165deg,
+    oklch(0.45 0.18 44) 0%,
+    oklch(0.55 0.16 52) 30%,
+    oklch(0.65 0.19 48) 60%,
+    oklch(0.75 0.12 72) 100%
+  );
+}
+
+/* ─── Mandala decorative pattern ─── */
+.mandala-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='90' fill='none' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3Ccircle cx='100' cy='100' r='70' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1'/%3E%3Ccircle cx='100' cy='100' r='50' fill='none' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3Cpath d='M100 10 L110 90 L190 100 L110 110 L100 190 L90 110 L10 100 L90 90 Z' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
+/* ─── Saffron divider ─── */
+.saffron-divider {
+  height: 3px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    oklch(var(--saffron)),
+    oklch(var(--gold)),
+    oklch(var(--saffron)),
+    transparent
+  );
+  border: none;
+}
+
+/* ─── Patriarch card ─── */
+.patriarch-card {
+  background: linear-gradient(
+    180deg,
+    oklch(0.97 0.02 72) 0%,
+    oklch(0.93 0.04 68) 100%
+  );
+  border: 2px solid oklch(var(--gold));
+  box-shadow: 0 8px 32px oklch(0.45 0.18 44 / 0.2), 0 2px 8px
+    oklch(0.45 0.18 44 / 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* ─── Nav link style ─── */
+.nav-link {
+  font-family: "General Sans", sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: color 0.2s ease;
+}
+
+/* ─── Heritage card hover ─── */
+.heritage-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.heritage-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px oklch(0.45 0.18 44 / 0.15);
+}
+
+/* ─── Family Tree canvas background ─── */
+.tree-canvas-bg {
+  background-color: oklch(var(--cream));
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23a0784a' fill-opacity='0.04'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* ─── Scrollbar styling ─── */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: oklch(var(--cream-dark));
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(var(--gold));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(var(--saffron));
+}
