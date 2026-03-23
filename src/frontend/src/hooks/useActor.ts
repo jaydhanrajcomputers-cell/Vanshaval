@@ -13,24 +13,10 @@ export function useActor() {
     queryKey: [ACTOR_QUERY_KEY, identity?.getPrincipal().toString()],
     queryFn: async () => {
       const isAuthenticated = !!identity;
-      // Always read admin token — this app uses password-based auth (not II),
-      // so identity is always null. We must initialize the actor with the
-      // admin token for all callers so backend writes succeed.
-      const adminToken = getSecretParameter("caffeineAdminToken") || "";
 
       if (!isAuthenticated) {
-        // Anonymous actor — still initialize with admin token if available
-        // so that backend writes (addFamilyMember, updateFamilyMember,
-        // addGalleryPhoto, getPendingRegistrations, etc.) can succeed.
-        const actor = await createActorWithConfig();
-        if (adminToken) {
-          try {
-            await actor._initializeAccessControlWithSecret(adminToken);
-          } catch {
-            // If secret init fails, continue with anonymous actor
-          }
-        }
-        return actor;
+        // Return anonymous actor if not authenticated
+        return await createActorWithConfig();
       }
 
       const actorOptions = {
@@ -40,13 +26,8 @@ export function useActor() {
       };
 
       const actor = await createActorWithConfig(actorOptions);
-      if (adminToken) {
-        try {
-          await actor._initializeAccessControlWithSecret(adminToken);
-        } catch {
-          // If secret init fails, continue without admin rights
-        }
-      }
+      const adminToken = getSecretParameter("caffeineAdminToken") || "";
+      await actor._initializeAccessControlWithSecret(adminToken);
       return actor;
     },
     // Only refetch when identity changes

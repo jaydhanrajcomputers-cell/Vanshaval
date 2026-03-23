@@ -30,6 +30,13 @@ function localPhotoToGalleryPhoto(
   } as GalleryPhoto;
 }
 
+// ── Helper: strip photoData from member before sending to backend ─────────────
+// ICP has ~2MB message size limit. Large base64 photos exceed this limit.
+// Photos are stored in localStorage keyed by member id/email and re-attached on read.
+function stripPhotoForBackend(member: FamilyMember): FamilyMember {
+  return { ...member, photoData: "" };
+}
+
 const DEFAULT_PATRIARCH: PatriarchInfo = {
   name: "श्री गणेश सावळाराम अभंगराव",
   title: "माजी नगराध्यक्ष – पंढरपूर",
@@ -72,7 +79,7 @@ export function useCallerUserRole() {
   });
 }
 
-// ── Family Tree Queries ──────────────────────────────────────────
+// ── Family Tree Queries ─────────────────────────────────────────────────────────────
 
 // Default patriarch member — always shown when backend has no members or fails
 const DEFAULT_PATRIARCH_MEMBER: FamilyMember = {
@@ -127,43 +134,82 @@ const DEFAULT_PATRIARCH_MEMBER: FamilyMember = {
   createdBy: "admin@vatavriksha.com",
 };
 
+// ── Helper: re-attach photo from localStorage for a member ────────────────────
+function reattachPhoto(m: FamilyMember): FamilyMember {
+  const photo =
+    localStore.getPhotoByIdOrEmail(m.id) ||
+    localStore.getPhotoByIdOrEmail(
+      (m as FamilyMember & { email?: string }).email || "",
+    ) ||
+    m.photoData;
+  return { ...m, photoData: photo };
+}
+
 export function useAllFamilyMembers() {
   const { actor, isFetching } = useActor();
 
   return useQuery<FamilyMember[]>({
     queryKey: ["familyMembers"],
+    staleTime: 0,
     queryFn: async () => {
-      // Get localStorage members
+      // ── Backend is authoritative source ──────────────────────────────────────
+      if (actor) {
+        try {
+          const backendMembers = await actor.getAllFamilyMembers();
+          if (backendMembers.length > 0) {
+            // Re-attach photos from localStorage (photos not stored in backend)
+            let members = backendMembers.map(reattachPhoto);
+
+            // Ensure patriarch photo is attached
+            members = members.map((m) => {
+              if (m.id === "patriarch-1" && !m.photoData) {
+                return {
+                  ...m,
+                  photoData:
+                    localStore.getPhotoByIdOrEmail("patriarch-1") ||
+                    localStore.getPhotoByIdOrEmail(
+                      "ganesh.abhangrao@vatavriksha.com",
+                    ) ||
+                    "",
+                };
+              }
+              return m;
+            });
+
+            // Ensure patriarch is always present
+            const hasPatriarch = members.some((m) => m.id === "patriarch-1");
+            if (!hasPatriarch) {
+              const patriarchWithPhoto = {
+                ...DEFAULT_PATRIARCH_MEMBER,
+                photoData:
+                  localStore.getPhotoByIdOrEmail("patriarch-1") ||
+                  localStore.getPhotoByIdOrEmail(
+                    "ganesh.abhangrao@vatavriksha.com",
+                  ) ||
+                  "",
+              };
+              return [patriarchWithPhoto, ...members];
+            }
+            return members;
+          }
+        } catch {
+          // Backend failed — fall through to localStorage
+        }
+      }
+
+      // ── Fallback: localStorage ────────────────────────────────────────────────
       const localMembers = localStore
         .getFamilyTreeMembers()
         .map(localMemberToFamilyMember);
-      // Also include approved members from registration flow
       const approvedMembers = localStore.getApprovedFamilyMembers();
 
-      let backendMembers: FamilyMember[] = [];
-      if (actor) {
-        try {
-          backendMembers = await actor.getAllFamilyMembers();
-        } catch {
-          // Backend failed — use localStorage only
-        }
-      }
+      const allLocalIds = new Set(localMembers.map((m) => m.id));
 
-      // Start with backend members as base
-      const backendIds = new Set(backendMembers.map((m) => m.id));
-
-      // Merge localStorage family tree members (deduplicate by id)
-      for (const local of localMembers) {
-        if (!backendIds.has(local.id)) {
-          backendMembers = [...backendMembers, local];
-          backendIds.add(local.id);
-        }
-      }
-
-      // Merge approved registration members (converted to FamilyMember)
+      // Merge approved registration members not already in local tree
+      const extraApproved: FamilyMember[] = [];
       for (const am of approvedMembers) {
-        if (!backendIds.has(am.id)) {
-          const converted: FamilyMember = {
+        if (!allLocalIds.has(am.id)) {
+          extraApproved.push({
             id: am.id,
             name: am.name,
             firstName: am.firstName || "",
@@ -179,7 +225,8 @@ export function useAllFamilyMembers() {
             marriageDate: am.marriageDate || "",
             deathDate: am.deathDate || "",
             isDeceased: am.isDeceased || false,
-            photoData: am.photoData || "",
+            photoData:
+              am.photoData || localStore.getPhotoByIdOrEmail(am.email) || "",
             education: am.education || "",
             occupationType: am.occupationType || "",
             occupation: am.occupation || "",
@@ -213,21 +260,39 @@ export function useAllFamilyMembers() {
             motherInLawId: "",
             createdAt: BigInt(0),
             createdBy: "admin",
-          };
-          backendMembers = [...backendMembers, converted];
-          backendIds.add(am.id);
+          });
         }
       }
 
-      // Ensure patriarch is always present
-      if (backendMembers.length === 0) {
-        return [DEFAULT_PATRIARCH_MEMBER];
+      const combined = [...localMembers, ...extraApproved];
+
+      if (combined.length === 0) {
+        const patriarchWithPhoto = {
+          ...DEFAULT_PATRIARCH_MEMBER,
+          photoData:
+            localStore.getPhotoByIdOrEmail("patriarch-1") ||
+            localStore.getPhotoByIdOrEmail(
+              "ganesh.abhangrao@vatavriksha.com",
+            ) ||
+            "",
+        };
+        return [patriarchWithPhoto];
       }
-      const hasPatriarch = backendMembers.some((m) => m.id === "patriarch-1");
+
+      const hasPatriarch = combined.some((m) => m.id === "patriarch-1");
       if (!hasPatriarch) {
-        return [DEFAULT_PATRIARCH_MEMBER, ...backendMembers];
+        const patriarchWithPhoto = {
+          ...DEFAULT_PATRIARCH_MEMBER,
+          photoData:
+            localStore.getPhotoByIdOrEmail("patriarch-1") ||
+            localStore.getPhotoByIdOrEmail(
+              "ganesh.abhangrao@vatavriksha.com",
+            ) ||
+            "",
+        };
+        return [patriarchWithPhoto, ...combined];
       }
-      return backendMembers;
+      return combined;
     },
     enabled: !isFetching,
     placeholderData: [DEFAULT_PATRIARCH_MEMBER],
@@ -259,22 +324,21 @@ export function useAddFamilyMember() {
 
   return useMutation({
     mutationFn: async (member: FamilyMember) => {
-      // Always save to localStorage first (permanent, works without backend auth)
+      // Save to localStorage immediately (works always, fast)
       localStore.saveFamilyTreeMember({
         ...member,
         createdAt: Number(member.createdAt),
       });
 
-      // Also attempt backend — if it fails due to auth, we already have localStorage
+      // Write to backend — photo stripped due to ICP message size limits
+      // Photo is stored in localStorage and re-attached on read
       if (actor) {
         try {
-          await actor.addFamilyMember(member);
+          const memberForBackend = stripPhotoForBackend(member);
+          await actor.addFamilyMember(memberForBackend);
         } catch (e) {
-          console.warn(
-            "Backend addFamilyMember failed (using localStorage):",
-            e,
-          );
-          // Do NOT re-throw — localStorage save already succeeded
+          console.warn("Backend addFamilyMember failed:", e);
+          // localStorage already has data, so this is recoverable
         }
       }
 
@@ -284,7 +348,6 @@ export function useAddFamilyMember() {
       queryClient.invalidateQueries({ queryKey: ["familyMembers"] });
       queryClient.invalidateQueries({ queryKey: ["patriarchId"] });
     },
-    // Never throw errors to the UI — localStorage save always succeeds
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ["familyMembers"] });
     },
@@ -297,21 +360,19 @@ export function useUpdateFamilyMember() {
 
   return useMutation({
     mutationFn: async (member: FamilyMember) => {
-      // Always save to localStorage first
+      // Save to localStorage immediately
       localStore.updateFamilyTreeMember({
         ...member,
         createdAt: Number(member.createdAt),
       });
 
-      // Attempt backend
+      // Write to backend — photo stripped due to ICP size limits
       if (actor) {
         try {
-          await actor.updateFamilyMember(member);
+          const memberForBackend = stripPhotoForBackend(member);
+          await actor.updateFamilyMember(memberForBackend);
         } catch (e) {
-          console.warn(
-            "Backend updateFamilyMember failed (using localStorage):",
-            e,
-          );
+          console.warn("Backend updateFamilyMember failed:", e);
         }
       }
     },
@@ -330,18 +391,15 @@ export function useDeleteFamilyMember() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // Always delete from localStorage
+      // Delete from localStorage
       localStore.deleteFamilyTreeMember(id);
 
-      // Attempt backend
+      // Delete from backend
       if (actor) {
         try {
           await actor.deleteFamilyMember(id);
         } catch (e) {
-          console.warn(
-            "Backend deleteFamilyMember failed (using localStorage):",
-            e,
-          );
+          console.warn("Backend deleteFamilyMember failed:", e);
         }
       }
     },
@@ -354,7 +412,7 @@ export function useDeleteFamilyMember() {
   });
 }
 
-// ── Relationship Request Queries ────────────────────────────────
+// ── Relationship Request Queries ────────────────────────────────────────────
 
 export function useRelationshipRequests() {
   const { actor, isFetching } = useActor();
@@ -445,7 +503,7 @@ export function useRejectRelationshipRequest() {
   });
 }
 
-// ── User Queries ────────────────────────────────────────────────
+// ── User Queries ──────────────────────────────────────────────────────────────
 
 export function useAllUsers() {
   const { actor, isFetching } = useActor();
@@ -497,38 +555,38 @@ export function useSaveCallerUserProfile() {
   });
 }
 
-// ── Gallery Queries ──────────────────────────────────────────────
-
-// Helper: merge backend photos with localStorage photos (deduplicate by id)
-function mergeGalleryPhotos(
-  backendPhotos: GalleryPhoto[],
-  localPhotos: GalleryPhoto[],
-): GalleryPhoto[] {
-  const backendIds = new Set(backendPhotos.map((p) => p.id));
-  const localOnly = localPhotos.filter((p) => !backendIds.has(p.id));
-  return [...backendPhotos, ...localOnly];
-}
+// ── Gallery Queries ───────────────────────────────────────────────────────────
 
 export function useGalleryPhotos() {
   const { actor, isFetching } = useActor();
 
   return useQuery<GalleryPhoto[]>({
     queryKey: ["galleryPhotos"],
+    staleTime: 0,
     queryFn: async () => {
-      const localPhotos = localStore
-        .getGalleryPhotos()
-        .map(localPhotoToGalleryPhoto);
-
-      let backendPhotos: GalleryPhoto[] = [];
+      // Backend is authoritative
       if (actor) {
         try {
-          backendPhotos = await actor.getGalleryPhotos();
+          const backendPhotos = await actor.getGalleryPhotos();
+          if (backendPhotos.length > 0) {
+            // Re-attach photoData from localStorage if backend entry has none
+            return backendPhotos.map((p) => {
+              if (!p.photoData) {
+                const local = localStore
+                  .getGalleryPhotos()
+                  .find((lp) => lp.id === p.id);
+                return { ...p, photoData: local?.photoData || "" };
+              }
+              return p;
+            });
+          }
         } catch {
-          // Backend failed — use localStorage only
+          // Backend failed — fall through
         }
       }
 
-      return mergeGalleryPhotos(backendPhotos, localPhotos);
+      // Fallback: localStorage
+      return localStore.getGalleryPhotos().map(localPhotoToGalleryPhoto);
     },
     enabled: !isFetching,
     placeholderData: [],
@@ -540,27 +598,39 @@ export function useGalleryPhotosByCategory(category: string) {
 
   return useQuery<GalleryPhoto[]>({
     queryKey: ["galleryPhotosByCategory", category],
+    staleTime: 0,
     queryFn: async () => {
-      // Get localStorage photos for this category (approved only for display)
+      // Backend is authoritative
+      if (actor) {
+        try {
+          const backendPhotos =
+            await actor.getGalleryPhotosByCategory(category);
+          if (backendPhotos.length > 0) {
+            // Re-attach photoData from localStorage if backend entry has none
+            return backendPhotos.map((p) => {
+              if (!p.photoData) {
+                const local = localStore
+                  .getGalleryPhotos()
+                  .find((lp) => lp.id === p.id);
+                return { ...p, photoData: local?.photoData || "" };
+              }
+              return p;
+            });
+          }
+        } catch {
+          // Backend failed — fall through
+        }
+      }
+
+      // Fallback: localStorage
       const allLocalPhotos = localStore
         .getGalleryPhotos()
         .map(localPhotoToGalleryPhoto);
-      const localCategoryPhotos = allLocalPhotos.filter(
+      return allLocalPhotos.filter(
         (p) =>
           (p.category === category || category === "all") &&
           p.approvedStatus !== "disabled",
       );
-
-      let backendPhotos: GalleryPhoto[] = [];
-      if (actor) {
-        try {
-          backendPhotos = await actor.getGalleryPhotosByCategory(category);
-        } catch {
-          // Backend failed — use localStorage only
-        }
-      }
-
-      return mergeGalleryPhotos(backendPhotos, localCategoryPhotos);
     },
     enabled: !isFetching && !!category,
     placeholderData: [],
@@ -590,7 +660,10 @@ export function usePendingGalleryPhotos() {
         }
       }
 
-      return mergeGalleryPhotos(backendPhotos, localPending);
+      // For pending photos, keep merged view (admin needs to see all)
+      const backendIds = new Set(backendPhotos.map((p) => p.id));
+      const localOnly = localPending.filter((p) => !backendIds.has(p.id));
+      return [...backendPhotos, ...localOnly];
     },
     enabled: !isFetching,
     placeholderData: [],
@@ -630,39 +703,33 @@ export function useAddGalleryPhoto() {
 
   return useMutation({
     mutationFn: async (photo: GalleryPhoto) => {
-      // Always save to localStorage first — works without backend auth
+      // Always save to localStorage (fast, reliable fallback)
       localStore.saveGalleryPhoto({
         ...photo,
         createdAt: Number(photo.createdAt),
         approvedStatus: photo.approvedStatus || "approved",
       });
 
-      // Attempt backend — if it fails due to auth, localStorage already has it
+      // Write to backend — gallery photos may be large; try with full data
       if (actor) {
         try {
           await actor.addGalleryPhoto(photo);
         } catch (e) {
-          console.warn(
-            "Backend addGalleryPhoto failed (using localStorage):",
-            e,
-          );
-          // Do NOT re-throw — localStorage save already succeeded
+          console.warn("Backend addGalleryPhoto failed:", e);
+          // localStorage already has data
         }
       }
 
       return photo.id;
     },
     onSuccess: (_data, photo) => {
-      // Invalidate all gallery-related queries
       queryClient.invalidateQueries({ queryKey: ["galleryPhotos"] });
       queryClient.invalidateQueries({ queryKey: ["galleryPhotosByCategory"] });
       queryClient.invalidateQueries({ queryKey: ["pendingGalleryPhotos"] });
       queryClient.invalidateQueries({ queryKey: ["galleryPhotoCount"] });
-      // Force refetch the specific category query so it shows immediately
       queryClient.refetchQueries({
         queryKey: ["galleryPhotosByCategory", photo.category],
       });
-      // Also refetch "recent" category if different
       if (photo.category !== "recent") {
         queryClient.refetchQueries({
           queryKey: ["galleryPhotosByCategory", "recent"],
@@ -670,7 +737,6 @@ export function useAddGalleryPhoto() {
       }
     },
     onError: (_err, photo) => {
-      // Even if mutation throws, invalidate to show localStorage data
       queryClient.invalidateQueries({ queryKey: ["galleryPhotos"] });
       queryClient.invalidateQueries({
         queryKey: ["galleryPhotosByCategory", photo.category],
@@ -685,18 +751,15 @@ export function useApproveGalleryPhoto() {
 
   return useMutation({
     mutationFn: async (photoId: string) => {
-      // Always update localStorage
+      // Update localStorage
       localStore.updateGalleryPhotoStatus(photoId, "approved");
 
-      // Attempt backend
+      // Update backend
       if (actor) {
         try {
           await actor.approveGalleryPhoto(photoId);
         } catch (e) {
-          console.warn(
-            "Backend approveGalleryPhoto failed (using localStorage):",
-            e,
-          );
+          console.warn("Backend approveGalleryPhoto failed:", e);
         }
       }
     },
@@ -718,18 +781,15 @@ export function useDeleteGalleryPhoto() {
 
   return useMutation({
     mutationFn: async (photoId: string) => {
-      // Always update localStorage (set to disabled rather than actual delete for admin toggle)
+      // Update localStorage (set to disabled)
       localStore.updateGalleryPhotoStatus(photoId, "disabled");
 
-      // Attempt backend delete
+      // Delete from backend
       if (actor) {
         try {
           await actor.deleteGalleryPhoto(photoId);
         } catch (e) {
-          console.warn(
-            "Backend deleteGalleryPhoto failed (using localStorage):",
-            e,
-          );
+          console.warn("Backend deleteGalleryPhoto failed:", e);
         }
       }
     },
@@ -757,18 +817,15 @@ export function useUpdateGalleryPhotoCategory() {
       photoId: string;
       newCategory: string;
     }) => {
-      // Always update localStorage
+      // Update localStorage
       localStore.updateGalleryPhotoCategory(photoId, newCategory);
 
-      // Attempt backend
+      // Update backend
       if (actor) {
         try {
           await actor.updateGalleryPhotoCategory(photoId, newCategory);
         } catch (e) {
-          console.warn(
-            "Backend updateGalleryPhotoCategory failed (using localStorage):",
-            e,
-          );
+          console.warn("Backend updateGalleryPhotoCategory failed:", e);
         }
       }
     },
@@ -783,26 +840,34 @@ export function useUpdateGalleryPhotoCategory() {
   });
 }
 
-// ── Pending Registrations Query ──────────────────────────────────
+// ── Pending Registrations Query ──────────────────────────────────────────────
 
 export function usePendingRegistrationsQuery() {
   const { actor, isFetching } = useActor();
   return useQuery<PendingRegistration[]>({
     queryKey: ["pendingRegistrations"],
+    staleTime: 0,
     queryFn: async () => {
-      if (!actor) return [];
-      try {
-        return await actor.getPendingRegistrations();
-      } catch {
-        return [];
+      const localRegs = (localStore.getPendingRegistrations?.() ??
+        []) as unknown as PendingRegistration[];
+      if (actor) {
+        try {
+          const backendRegs = await actor.getPendingRegistrations();
+          const backendIds = new Set(backendRegs.map((r) => r.email));
+          const localOnly = localRegs.filter((r) => !backendIds.has(r.email));
+          return [...backendRegs, ...localOnly];
+        } catch {
+          // Backend failed
+        }
       }
+      return localRegs;
     },
     enabled: !!actor && !isFetching,
     placeholderData: [],
   });
 }
 
-// ── Backup Queries ───────────────────────────────────────────────
+// ── Backup Queries ──────────────────────────────────────────────────────────────
 
 export function useAllUsersForBackup() {
   const { actor, isFetching } = useActor();
