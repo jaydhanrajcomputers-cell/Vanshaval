@@ -18,7 +18,7 @@ export default {
       fontFamily: {
         display: ["Fraunces", "serif"],
         body: ["Crimson Pro", "serif"],
-        ui: ["General Sans", "sans-serif"],
+        ui: ["DM Sans", "sans-serif"],
       },
       colors: {
         border: "oklch(var(--border))",

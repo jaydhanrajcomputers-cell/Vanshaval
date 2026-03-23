@@ -1,87 +1,41 @@
+/* ─── Google Fonts: Fraunces (Display), Crimson Pro (Body), DM Sans (UI) ─── */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Crimson+Pro:wght@200..900&family=DM+Sans:opsz,wght@9..40,200..700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* ─── Fraunces: Display/Headings ─── */
-@font-face {
-  font-family: "Fraunces";
-  src: url("") format("woff2");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* ─── Crimson Pro: Body/Devanagari-adjacent serif ─── */
-@font-face {
-  font-family: "Crimson Pro";
-  src: url("") format("woff2");
-  font-weight: 200 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* ─── General Sans: UI/Navigation ─── */
-@font-face {
-  font-family: "General Sans";
-  src: url("") format("woff2");
-  font-weight: 200 700;
-  font-style: normal;
-  font-display: swap;
-}
 
 @layer base {
   :root {
     --radius: 0.5rem;
 
     /* Vatavriksha Heritage Palette — Warm Saffron + Earthy Cream */
-    /* Background: warm ivory/cream */
     --background: 0.974 0.012 80;
-    /* Foreground: deep espresso brown */
     --foreground: 0.22 0.04 55;
-
-    /* Card: slightly warmer ivory */
     --card: 0.968 0.018 75;
     --card-foreground: 0.22 0.04 55;
-
-    /* Popover */
     --popover: 0.98 0.01 75;
     --popover-foreground: 0.22 0.04 55;
-
-    /* Primary: deep saffron/ochre */
     --primary: 0.55 0.16 52;
     --primary-foreground: 0.98 0.01 75;
-
-    /* Secondary: muted turmeric gold */
     --secondary: 0.92 0.06 75;
     --secondary-foreground: 0.3 0.06 55;
-
-    /* Muted: warm sand */
     --muted: 0.94 0.025 75;
     --muted-foreground: 0.5 0.04 60;
-
-    /* Accent: forest/earthy green */
     --accent: 0.88 0.04 150;
     --accent-foreground: 0.25 0.08 145;
-
-    /* Destructive */
     --destructive: 0.55 0.22 25;
     --destructive-foreground: 0.98 0.01 75;
-
-    /* Border: warm tan */
     --border: 0.85 0.04 70;
-    /* Input */
     --input: 0.88 0.03 70;
-    /* Ring: saffron */
     --ring: 0.55 0.16 52;
 
-    /* Charts */
     --chart-1: 0.646 0.222 41.116;
     --chart-2: 0.6 0.118 184.704;
     --chart-3: 0.398 0.07 227.392;
     --chart-4: 0.828 0.189 84.429;
     --chart-5: 0.769 0.188 70.08;
 
-    /* Sidebar */
     --sidebar: 0.96 0.02 72;
     --sidebar-foreground: 0.22 0.04 55;
     --sidebar-primary: 0.55 0.16 52;
@@ -91,7 +45,6 @@
     --sidebar-border: 0.85 0.04 70;
     --sidebar-ring: 0.55 0.16 52;
 
-    /* Heritage custom tokens */
     --saffron: 0.65 0.19 48;
     --saffron-deep: 0.45 0.18 44;
     --saffron-light: 0.88 0.09 65;
@@ -110,7 +63,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: "Crimson Pro", "General Sans", serif;
+    font-family: "Crimson Pro", "DM Sans", serif;
   }
 
   h1,
@@ -175,7 +128,7 @@
 
 /* ─── Nav link style ─── */
 .nav-link {
-  font-family: "General Sans", sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-weight: 500;
   letter-spacing: 0.02em;
   transition: color 0.2s ease;

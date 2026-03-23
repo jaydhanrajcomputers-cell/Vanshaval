@@ -42,6 +42,8 @@ export default defineConfig({
     environment("all", { prefix: "DFX_" }),
     environment(["II_URL"]),
     environment(["STORAGE_GATEWAY_URL"]),
+    // Optional token for admin operations on Vercel — defaults to empty string
+    environment({ VITE_CAFFEINE_ADMIN_TOKEN: "" }),
     react(),
   ],
   resolve: {

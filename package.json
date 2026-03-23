@@ -2,8 +2,8 @@
   "name": "@caffeine/template-app",
   "type": "module",
   "engines": {
-  "node": "20.x",
-  "npm": "10.x",
+    "node": ">=16.0.0",
+    "pnpm": ">=7.0.0",
     "npm": "please use pnpm"
   },
   "scripts": {
