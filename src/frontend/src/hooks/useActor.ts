@@ -7,13 +7,26 @@ import { useInternetIdentity } from "./useInternetIdentity";
 
 const ACTOR_QUERY_KEY = "actor";
 
-// Admin token: from URL hash (Caffeine platform), or from Vite env variable (Vercel/custom deployment)
-function resolveAdminToken(): string {
-  const fromUrl = getSecretParameter("caffeineAdminToken");
-  if (fromUrl) return fromUrl;
-  // Fallback: VITE_ADMIN_TOKEN env variable (set in Vercel dashboard)
-  const fromEnv = import.meta.env.VITE_ADMIN_TOKEN as string | undefined;
-  return fromEnv || "";
+// Retrieve admin token from URL, localStorage, or environment
+function getAdminToken(): string {
+  // 1. Check URL parameter first (Caffeine deployment link)
+  const urlToken = getSecretParameter("caffeineAdminToken");
+  if (urlToken) {
+    try {
+      localStorage.setItem("_caffeine_admin_token", urlToken);
+    } catch {
+      // ignore
+    }
+    return urlToken;
+  }
+  // 2. Check localStorage (persisted from previous deployment link visit)
+  try {
+    const stored = localStorage.getItem("_caffeine_admin_token");
+    if (stored) return stored;
+  } catch {
+    // ignore
+  }
+  return "";
 }
 
 export function useActor() {
@@ -22,22 +35,17 @@ export function useActor() {
   const actorQuery = useQuery<backendInterface>({
     queryKey: [ACTOR_QUERY_KEY, identity?.getPrincipal().toString()],
     queryFn: async () => {
-      const adminToken = resolveAdminToken();
+      const adminToken = getAdminToken();
 
       const isAuthenticated = !!identity;
 
       if (!isAuthenticated) {
-        // Anonymous actor — still initialize admin token so backend writes work
+        // Anonymous actor — still initialize ACL so backend writes work
         const actor = await createActorWithConfig();
-        if (adminToken) {
-          try {
-            await actor._initializeAccessControlWithSecret(adminToken);
-          } catch (e) {
-            console.warn(
-              "Anonymous actor: admin token initialization failed",
-              e,
-            );
-          }
+        try {
+          await actor._initializeAccessControlWithSecret(adminToken);
+        } catch {
+          // ignore — may already be initialized
         }
         return actor;
       }
@@ -49,11 +57,14 @@ export function useActor() {
       };
 
       const actor = await createActorWithConfig(actorOptions);
-      if (adminToken) {
+      try {
         await actor._initializeAccessControlWithSecret(adminToken);
+      } catch {
+        // ignore — may already be initialized
       }
       return actor;
     },
+    // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,
     enabled: true,
   });
