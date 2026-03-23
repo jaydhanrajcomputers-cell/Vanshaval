@@ -1,12 +1,16 @@
 {
-  "name": "@caffeine/template-frontend",
+  "name": "vatavriksha-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
-    "build:skip-bindings": "vite build && pnpm copy:env",
-    "build": "vite build && pnpm copy:env",
-    "copy:env": "cp env.json dist/",
+    "build:skip-bindings": "vite build && node -e \"require('fs').copyFileSync('env.json','dist/env.json')\"",
+    "build": "vite build && node -e \"require('fs').copyFileSync('env.json','dist/env.json')\"",
+    "copy:env": "node -e \"require('fs').copyFileSync('env.json','dist/env.json')\"",
     "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsconfig.tsbuildinfo --pretty",
     "check": "biome check src",
     "fix": "biome check --write src"
