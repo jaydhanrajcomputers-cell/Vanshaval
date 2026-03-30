@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { type FormEvent, useState } from "react";
+import { UserRole } from "../backend.d";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 
@@ -37,8 +38,13 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      navigate({ to: "/" });
+      const profile = await login(email, password);
+      // Admin directly to admin panel
+      if (profile.role === UserRole.admin) {
+        navigate({ to: "/admin" });
+      } else {
+        navigate({ to: "/" });
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg === "PENDING_APPROVAL") {
@@ -59,9 +65,7 @@ export function LoginPage() {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="w-full max-w-md"
       >
-        {/* Card */}
         <div className="bg-card border border-border rounded-2xl shadow-heritage-lg overflow-hidden">
-          {/* Header */}
           <div className="hero-gradient px-8 pt-8 pb-6 text-center">
             <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-full bg-white/20 backdrop-blur-sm mb-4">
               <TreePine className="h-7 w-7 text-white" />
@@ -76,9 +80,7 @@ export function LoginPage() {
 
           <div className="saffron-divider" />
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="px-8 py-8 space-y-5">
-            {/* Error state */}
             {error && (
               <Alert
                 variant="destructive"
@@ -92,7 +94,6 @@ export function LoginPage() {
               </Alert>
             )}
 
-            {/* Pending approval state */}
             {isPendingApproval && (
               <Alert
                 data-ocid="login.pending_state"
@@ -106,14 +107,12 @@ export function LoginPage() {
                     तुम्ही लॉगिन करू शकाल.
                   </p>
                   <p className="text-xs text-amber-700">
-                    Your registration is pending admin approval. You can login
-                    once the admin approves your registration.
+                    Your registration is pending admin approval.
                   </p>
                 </AlertDescription>
               </Alert>
             )}
 
-            {/* Email */}
             <div className="space-y-1.5">
               <Label
                 htmlFor="login-email"
@@ -134,7 +133,6 @@ export function LoginPage() {
               />
             </div>
 
-            {/* Password */}
             <div className="space-y-1.5">
               <Label
                 htmlFor="login-password"
@@ -169,7 +167,6 @@ export function LoginPage() {
               </div>
             </div>
 
-            {/* Submit */}
             <Button
               type="submit"
               disabled={isLoading || !email || !password}
@@ -189,7 +186,6 @@ export function LoginPage() {
               )}
             </Button>
 
-            {/* Register link */}
             <p className="text-center font-ui text-sm text-muted-foreground">
               {t("noAccount")}{" "}
               <Link

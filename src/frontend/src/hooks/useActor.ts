@@ -12,59 +12,38 @@ export function useActor() {
   const actorQuery = useQuery<backendInterface>({
     queryKey: [ACTOR_QUERY_KEY, identity?.getPrincipal().toString()],
     queryFn: async () => {
-      const isAuthenticated = !!identity;
+      const actor = identity
+        ? await createActorWithConfig({ agentOptions: { identity } })
+        : await createActorWithConfig();
 
-      if (!isAuthenticated) {
-        // Anonymous actor
-        const actor = await createActorWithConfig();
+      // Try to initialize admin token for both anonymous and authenticated actors
+      try {
         const adminToken =
           getSecretParameter("caffeineAdminToken") ||
           sessionStorage.getItem("caffeineAdminToken") ||
           localStorage.getItem("caffeineAdminToken") ||
+          (import.meta.env.VITE_ADMIN_TOKEN as string | undefined) ||
           "";
         if (adminToken) {
-          try {
-            await actor._initializeAccessControlWithSecret(adminToken);
-          } catch {
-            // Token not available or invalid — continue as anonymous
-          }
+          await actor._initializeAccessControlWithSecret(adminToken);
         }
-        return actor;
-      }
-
-      const actorOptions = {
-        agentOptions: {
-          identity,
-        },
-      };
-
-      const actor = await createActorWithConfig(actorOptions);
-      const adminToken = getSecretParameter("caffeineAdminToken") || "";
-      try {
-        await actor._initializeAccessControlWithSecret(adminToken);
       } catch {
-        // Token initialization failed — continue with actor
+        // Non-fatal: actor still works for reads
       }
+
       return actor;
     },
-    // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,
-    // This will cause the actor to be recreated when the identity changes
     enabled: true,
   });
 
-  // When the actor changes, invalidate dependent queries
   useEffect(() => {
     if (actorQuery.data) {
       queryClient.invalidateQueries({
-        predicate: (query) => {
-          return !query.queryKey.includes(ACTOR_QUERY_KEY);
-        },
+        predicate: (query) => !query.queryKey.includes(ACTOR_QUERY_KEY),
       });
       queryClient.refetchQueries({
-        predicate: (query) => {
-          return !query.queryKey.includes(ACTOR_QUERY_KEY);
-        },
+        predicate: (query) => !query.queryKey.includes(ACTOR_QUERY_KEY),
       });
     }
   }, [actorQuery.data, queryClient]);
