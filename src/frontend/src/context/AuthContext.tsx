@@ -141,16 +141,30 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     return null;
   }, []);
 
-  // Restore session from localStorage on mount — wait for actor to be ready
+  // Restore session immediately on mount - don't wait for actor
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run once on mount
   useEffect(() => {
-    if (!actor) return; // wait for actor
     const stored = localStorage.getItem(SESSION_KEY);
     if (stored) {
       loadUserByEmail(stored).finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
-  }, [actor, loadUserByEmail]);
+  }, []); // intentionally run once on mount only
+
+  // When actor becomes available, refresh regular user data from backend
+  // biome-ignore lint/correctness/useExhaustiveDependencies: loadUserByEmail uses actorRef.current internally
+  useEffect(() => {
+    if (!actor) return;
+    const stored = localStorage.getItem(SESSION_KEY);
+    if (
+      stored &&
+      stored.toLowerCase() !== "admin@vatavriksha.com" &&
+      stored.toLowerCase() !== "ganesh.abhangrao@vatavriksha.com"
+    ) {
+      loadUserByEmail(stored);
+    }
+  }, [actor]);
 
   const login = useCallback(async (email: string, password: string) => {
     const currentActor = actorRef.current;

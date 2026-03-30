@@ -15,8 +15,21 @@ export function useActor() {
       const isAuthenticated = !!identity;
 
       if (!isAuthenticated) {
-        // Return anonymous actor if not authenticated
-        return await createActorWithConfig();
+        // Anonymous actor
+        const actor = await createActorWithConfig();
+        const adminToken =
+          getSecretParameter("caffeineAdminToken") ||
+          sessionStorage.getItem("caffeineAdminToken") ||
+          localStorage.getItem("caffeineAdminToken") ||
+          "";
+        if (adminToken) {
+          try {
+            await actor._initializeAccessControlWithSecret(adminToken);
+          } catch {
+            // Token not available or invalid — continue as anonymous
+          }
+        }
+        return actor;
       }
 
       const actorOptions = {
@@ -27,7 +40,11 @@ export function useActor() {
 
       const actor = await createActorWithConfig(actorOptions);
       const adminToken = getSecretParameter("caffeineAdminToken") || "";
-      await actor._initializeAccessControlWithSecret(adminToken);
+      try {
+        await actor._initializeAccessControlWithSecret(adminToken);
+      } catch {
+        // Token initialization failed — continue with actor
+      }
       return actor;
     },
     // Only refetch when identity changes
