@@ -138,11 +138,24 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run once on mount
   useEffect(() => {
     const stored = localStorage.getItem(SESSION_KEY);
-    if (stored) {
-      loadUserByEmail(stored).finally(() => setIsLoading(false));
-    } else {
+    if (!stored) {
       setIsLoading(false);
+      return;
     }
+    const lc = stored.toLowerCase();
+    // For hardcoded accounts, resolve immediately without async
+    if (lc === "admin@vatavriksha.com") {
+      setCurrentUser(makeAdminProfile());
+      setIsLoading(false);
+      return;
+    }
+    if (lc === "ganesh.abhangrao@vatavriksha.com") {
+      setCurrentUser(makeGaneshProfile());
+      setIsLoading(false);
+      return;
+    }
+    // For regular users, async load
+    loadUserByEmail(stored).finally(() => setIsLoading(false));
   }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: loadUserByEmail uses actorRef.current internally

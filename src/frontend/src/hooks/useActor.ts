@@ -6,28 +6,6 @@ import { getSecretParameter } from "../utils/urlParams";
 import { useInternetIdentity } from "./useInternetIdentity";
 
 const ACTOR_QUERY_KEY = "actor";
-
-function getAdminToken(): string {
-  // Try URL param first (Caffeine platform)
-  const fromUrl = getSecretParameter("caffeineAdminToken");
-  if (fromUrl) return fromUrl;
-  // Try sessionStorage
-  try {
-    const fromSession = sessionStorage.getItem("caffeineAdminToken");
-    if (fromSession) return fromSession;
-  } catch {
-    /* ignore */
-  }
-  // Try localStorage
-  try {
-    const fromLocal = localStorage.getItem("caffeineAdminToken");
-    if (fromLocal) return fromLocal;
-  } catch {
-    /* ignore */
-  }
-  return "";
-}
-
 export function useActor() {
   const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
@@ -37,15 +15,8 @@ export function useActor() {
       const isAuthenticated = !!identity;
 
       if (!isAuthenticated) {
-        // Anonymous actor — still initialize with admin token so backend writes work
-        const actor = await createActorWithConfig();
-        try {
-          const adminToken = getAdminToken();
-          await actor._initializeAccessControlWithSecret(adminToken);
-        } catch {
-          /* ignore — token may not be available */
-        }
-        return actor;
+        // Return anonymous actor if not authenticated
+        return await createActorWithConfig();
       }
 
       const actorOptions = {
@@ -55,15 +26,13 @@ export function useActor() {
       };
 
       const actor = await createActorWithConfig(actorOptions);
-      try {
-        const adminToken = getAdminToken();
-        await actor._initializeAccessControlWithSecret(adminToken);
-      } catch {
-        /* ignore */
-      }
+      const adminToken = getSecretParameter("caffeineAdminToken") || "";
+      await actor._initializeAccessControlWithSecret(adminToken);
       return actor;
     },
+    // Only refetch when identity changes
     staleTime: Number.POSITIVE_INFINITY,
+    // This will cause the actor to be recreated when the identity changes
     enabled: true,
   });
 
