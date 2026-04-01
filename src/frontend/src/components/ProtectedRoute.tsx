@@ -1,7 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+
+const SESSION_KEY = "vatavriksha_user_email";
+const ADMIN_EMAIL = "admin@vatavriksha.com";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,19 +17,35 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { isLoggedIn, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
+  // Fallback: check localStorage directly to avoid timing issues
+  const [localAdminCheck] = useState(() => {
+    try {
+      const stored = localStorage.getItem(SESSION_KEY);
+      return stored?.toLowerCase() === ADMIN_EMAIL;
+    } catch {
+      return false;
+    }
+  });
+
+  const effectiveIsAdmin = isAdmin || localAdminCheck;
+  const effectiveIsLoggedIn = isLoggedIn || localAdminCheck;
 
   useEffect(() => {
     if (isLoading) return;
-    if (!isLoggedIn) {
+    if (!effectiveIsLoggedIn) {
       navigate({ to: "/login" });
       return;
     }
-    if (adminOnly && !isAdmin) {
+    if (adminOnly && !effectiveIsAdmin) {
       navigate({ to: "/" });
     }
-  }, [isLoading, isLoggedIn, isAdmin, adminOnly, navigate]);
+  }, [isLoading, effectiveIsLoggedIn, effectiveIsAdmin, adminOnly, navigate]);
 
   if (isLoading) {
+    // If localStorage shows admin session, don't block with skeleton
+    if (adminOnly && localAdminCheck) {
+      return <>{children}</>;
+    }
     return (
       <div className="min-h-screen heritage-bg flex items-center justify-center">
         <div className="space-y-4 w-64">
@@ -39,11 +58,11 @@ export function ProtectedRoute({
     );
   }
 
-  if (!isLoggedIn) {
+  if (!effectiveIsLoggedIn) {
     return null;
   }
 
-  if (adminOnly && !isAdmin) {
+  if (adminOnly && !effectiveIsAdmin) {
     return null;
   }
 
